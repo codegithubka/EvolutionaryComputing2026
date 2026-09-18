@@ -1,0 +1,4 @@
+| config | runs | offspring_total | size_rejections_total | size_fallbacks_total | rejections_per_offspring | rejections_per_run_mean | fallbacks_per_run_mean |
+|---|---|---|---|---|---|---|---|
+| P | 20 | 200000 | 0 | 0 | 0 | 0 | 0 |
+| S | 20 | 200000 | 3 | 0 | 1.5e-05 | 0.15 | 0 |
