@@ -17,6 +17,8 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
+from matplotlib.lines import Line2D
 from rich.console import Console
 from scipy.stats import mannwhitneyu
 
@@ -40,7 +42,11 @@ COLOURS: dict[str, str] = {
 }
 INK = "#0b0b0b"
 INK_2 = "#52514e"
-GRID = "#e4e3df"
+MUTED = "#898781"
+GRID = "#e1e0d9"
+AXIS = "#c3c2b7"
+COL_W: float = 3.33
+PAGE_W: float = 7.0
 H2_GENERATION: int = 10
 SPAWN_POS: list[float] = [0.0, 0.0, 0.1]
 RENDER_FOVY: float = 2.0
@@ -135,101 +141,139 @@ def values_at(frames: list[pd.DataFrame], column: str, gen: int | None) -> np.nd
 # ============================================================================ #
 
 
-def _style(ax: plt.Axes) -> None:
-    """Recessive grid and axes, ink-coloured text."""
-    ax.grid(visible=True, color=GRID, linewidth=0.8)
-    ax.set_axisbelow(True)
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    for side in ("left", "bottom"):
-        ax.spines[side].set_color(INK_2)
-    ax.tick_params(colors=INK_2)
-    ax.xaxis.label.set_color(INK)
-    ax.yaxis.label.set_color(INK)
-
-
-def _band(ax: plt.Axes, stats: pd.DataFrame, colour: str, label: str, style: str) -> None:
-    """Line at the mean with a +-1 std band."""
-    x = stats.index.to_numpy()
-    ax.plot(x, stats["mean"], color=colour, linewidth=2, linestyle=style, label=label)
-    ax.fill_between(
-        x,
-        stats["mean"] - stats["std"],
-        stats["mean"] + stats["std"],
-        color=colour,
-        alpha=0.15,
-        linewidth=0,
+def set_style() -> None:
+    """Shared seaborn theme for every figure: paper context, hairline grid, sans."""
+    sns.set_theme(
+        context="paper",
+        style="ticks",
+        palette=[COLOURS[name] for name in CONFIGS],
+        font="sans-serif",
+        rc={
+            "font.size": 8,
+            "axes.titlesize": 8,
+            "axes.labelsize": 8,
+            "xtick.labelsize": 7,
+            "ytick.labelsize": 7,
+            "legend.fontsize": 7,
+            "axes.edgecolor": AXIS,
+            "axes.labelcolor": INK,
+            "axes.titlecolor": INK,
+            "axes.linewidth": 0.8,
+            "axes.grid": True,
+            "axes.grid.axis": "y",
+            "grid.color": GRID,
+            "grid.linewidth": 0.6,
+            "xtick.color": INK_2,
+            "ytick.color": INK_2,
+            "text.color": INK,
+            "lines.linewidth": 1.5,
+            "savefig.dpi": 300,
+            "savefig.bbox": "tight",
+            "savefig.pad_inches": 0.02,
+            "pdf.fonttype": 42,
+        },
     )
 
 
-def fig_convergence(runs: dict[str, list[pd.DataFrame]], out: Path) -> None:
-    """Fig 1: best and population-mean fitness, mean +- std over runs."""
-    fig, ax = plt.subplots(figsize=(6.4, 4.0), dpi=200)
-    for name in ("point", "subtree"):
-        if name in runs:
-            n = len(runs[name])
-            _band(ax, per_generation(runs[name], "best"), COLOURS[name],
-                  f"{LABELS[name]} best (n={n})", "-")
-            _band(ax, per_generation(runs[name], "mean"), COLOURS[name],
-                  f"{LABELS[name]} population mean", "--")
+def _save(fig: plt.Figure, out: Path, stem: str) -> None:
+    """Save a figure as PNG (preview) and PDF (vector, for the LaTeX report)."""
+    for ext in ("png", "pdf"):
+        fig.savefig(out / f"{stem}.{ext}")
+    plt.close(fig)
+
+
+def _band(ax: plt.Axes, stats: pd.DataFrame, name: str, style: str, *,
+          band: bool = True) -> None:
+    """Line at the across-run mean, optionally with a +-1 sample std band."""
+    x = stats.index.to_numpy()
+    ax.plot(x, stats["mean"], color=COLOURS[name], linestyle=style)
+    if band:
+        ax.fill_between(x, stats["mean"] - stats["std"], stats["mean"] + stats["std"],
+                        color=COLOURS[name], alpha=0.18, linewidth=0)
+
+
+def _end_label(ax: plt.Axes, stats: pd.DataFrame, text: str) -> None:
+    """Direct label just right of a line's last point, in secondary ink."""
+    ax.annotate(text, xy=(stats.index[-1], stats["mean"].iloc[-1]),
+                xytext=(3, 0), textcoords="offset points",
+                va="center", ha="left", fontsize=7, color=INK_2)
+
+
+def _shared_legend(fig: plt.Figure, names: list[str], styles: dict[str, str]) -> None:
+    """One legend for all panels: colour = algorithm, line style = statistic."""
+    handles = [Line2D([], [], color=COLOURS[n], linewidth=2.5) for n in names]
+    labels = [LABELS[n] for n in names]
+    for label, style in styles.items():
+        handles.append(Line2D([], [], color=INK_2, linestyle=style))
+        labels.append(label)
+    fig.legend(handles, labels, loc="upper center", ncol=len(labels),
+               frameon=False, bbox_to_anchor=(0.5, 1.0), handlelength=2.2,
+               columnspacing=1.4)
+
+
+def fig_dynamics(runs: dict[str, list[pd.DataFrame]], target_mean_size: float,
+                 out: Path) -> None:
+    """Fig 1: (a) fitness and (b) body size per generation, mean +- std over runs."""
+    fig, (ax_fit, ax_size) = plt.subplots(1, 2, figsize=(PAGE_W, 2.5), sharex=True)
+    ea_names = [n for n in ("point", "subtree") if n in runs]
+
+    for name in ea_names:
+        best = per_generation(runs[name], "best")
+        _band(ax_fit, per_generation(runs[name], "mean"), name, "--", band=False)
+        _band(ax_fit, best, name, "-")
+        _end_label(ax_fit, best, SHORT[name])
     if "random" in runs:
-        _band(ax, per_generation(runs["random"], "best"), COLOURS["random"],
-              f"{LABELS['random']} best-so-far (n={len(runs['random'])})", ":")
+        best = per_generation(runs["random"], "best")
+        _band(ax_fit, best, "random", "-")
+        _end_label(ax_fit, best, SHORT["random"])
+    ax_fit.set_title("(a) Fitness", loc="left")
+    ax_fit.set_ylabel("Fitness (lower is better)")
+
+    for name in ea_names:
+        size = per_generation(runs[name], "mean_size")
+        _band(ax_size, size, name, "-")
+        _end_label(ax_size, size, SHORT[name])
+    ax_size.axhline(target_mean_size, color=MUTED, linestyle=":", linewidth=1.2)
+    ax_size.annotate(f"target mean ({target_mean_size:.1f})",
+                     xy=(0, target_mean_size), xytext=(2, -3), textcoords="offset points",
+                     va="top", ha="left", fontsize=7, color=INK_2)
+    ax_size.set_title("(b) Mean body size", loc="left")
+    ax_size.set_ylabel("Modules per body")
+
     any_run = next(iter(runs.values()))[0]
     per_gen = int(any_run["evals"].iloc[1] - any_run["evals"].iloc[0]) if len(any_run) > 1 else 0
-    ax.set_xlabel(f"generation (1 generation = {per_gen} evaluations, same for RS)")
-    ax.set_ylabel("fitness (mean + std TED, lower is better)")
-    _style(ax)
-    ax.legend(frameon=False, fontsize=7, labelcolor=INK)
-    fig.tight_layout()
-    fig.savefig(out / "fig1_convergence.png")
-    plt.close(fig)
+    for ax in (ax_fit, ax_size):
+        ax.set_xlabel(f"Generation ({per_gen} evaluations each)")
+        ax.margins(x=0)
+        ax.set_xlim(right=ax.get_xlim()[1] * 1.07)
+    sns.despine(fig)
+    _shared_legend(fig, [n for n in CONFIGS if n in runs],
+                   {"best (RS: best so far)": "-", "population mean": "--"})
+    fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=2.0)
+    _save(fig, out, "fig1_dynamics")
 
 
-def fig_size(runs: dict[str, list[pd.DataFrame]], target_mean_size: float, out: Path) -> None:
-    """Fig 2: mean body size per generation, P vs S, + target mean size."""
-    fig, ax = plt.subplots(figsize=(6.4, 3.4), dpi=200)
-    for name in ("point", "subtree"):
-        if name in runs:
-            _band(ax, per_generation(runs[name], "mean_size"), COLOURS[name],
-                  f"{LABELS[name]} (n={len(runs[name])})", "-")
-    ax.axhline(target_mean_size, color=INK_2, linestyle="--", linewidth=1.2,
-               label=f"target mean size ({target_mean_size:.1f} nodes)")
-    ax.set_xlabel("generation")
-    ax.set_ylabel("mean body size (nodes)")
-    _style(ax)
-    ax.legend(frameon=False, fontsize=7, labelcolor=INK)
-    fig.tight_layout()
-    fig.savefig(out / "fig2_size.png")
-    plt.close(fig)
-
-
-def fig_final_box(final: dict[str, np.ndarray], out: Path) -> None:
-    """Fig 3: boxplot of final best fitness per config, runs overlaid."""
-    names = list(final)
-    fig, ax = plt.subplots(figsize=(4.8, 3.4), dpi=200)
-    box = ax.boxplot(
-        [final[n] for n in names],
-        tick_labels=[SHORT[n] for n in names],
-        widths=0.5,
-        patch_artist=True,
-        medianprops={"color": INK, "linewidth": 1.5},
-        showfliers=False,
+def fig_final(final: dict[str, np.ndarray], out: Path) -> None:
+    """Fig 2: final best fitness per config, box + every run as a point."""
+    names = [n for n in CONFIGS if n in final]
+    long = pd.DataFrame(
+        [{"config": LABELS[n], "fitness": v} for n in names for v in final[n]],
     )
-    for patch, name in zip(box["boxes"], names, strict=True):
-        patch.set_facecolor(COLOURS[name])
-        patch.set_alpha(0.35)
-        patch.set_edgecolor(COLOURS[name])
-    for i, name in enumerate(names, start=1):
-        vals = np.sort(final[name])
-        offsets = np.linspace(-0.12, 0.12, len(vals)) if len(vals) > 1 else [0.0]
-        ax.scatter(i + np.asarray(offsets), vals, s=12, color=COLOURS[name],
-                   edgecolor="white", linewidth=0.5, zorder=3)
-    ax.set_ylabel("final best fitness (lower is better)")
-    _style(ax)
+    order = [LABELS[n] for n in names]
+    palette = {LABELS[n]: COLOURS[n] for n in names}
+    fig, ax = plt.subplots(figsize=(COL_W, 2.3))
+    sns.boxplot(data=long, x="config", y="fitness", hue="config", order=order,
+                hue_order=order, palette=palette, width=0.5, showfliers=False,
+                boxprops={"alpha": 0.35}, linecolor=INK_2, linewidth=0.8,
+                legend=False, ax=ax)
+    sns.swarmplot(data=long, x="config", y="fitness", hue="config", order=order,
+                  hue_order=order, palette=palette, size=3, edgecolor="white",
+                  linewidth=0.4, legend=False, ax=ax)
+    ax.set_xlabel("")
+    ax.set_ylabel("Final best fitness (lower is better)")
+    sns.despine(fig)
     fig.tight_layout()
-    fig.savefig(out / "fig3_final_best.png")
-    plt.close(fig)
+    _save(fig, out, "fig2_final_best")
 
 
 # ============================================================================ #
@@ -336,6 +380,7 @@ def save_table(df: pd.DataFrame, out: Path, stem: str) -> None:
 
 
 # ============================================================================ #
+#  5. RENDERING THE BEST BODIES
 # ============================================================================ #
 
 
@@ -430,9 +475,9 @@ def main() -> None:
     else:
         console.log(f"[yellow]H2 skipped: generation {H2_GENERATION} not in every P/S run[/yellow]")
 
-    fig_convergence(runs, args.out)
-    fig_size(runs, target_mean_size, args.out)
-    fig_final_box(final, args.out)
+    set_style()
+    fig_dynamics(runs, target_mean_size, args.out)
+    fig_final(final, args.out)
 
     tables = {
         "final_best": final_best_table(final),
