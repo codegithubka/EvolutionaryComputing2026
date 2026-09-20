@@ -124,9 +124,13 @@ def main() -> None:
 
     table = Table(title=f"Mutation step sizes (n={args.n} parents, seed={args.seed})")
     for col in rows[0]:
-        table.add_column(col, justify="left" if col in {"parents", "operator"} else "right")
+        table.add_column(
+            col, justify="left" if col in {"parents", "operator"} else "right"
+        )
     for row in rows:
-        table.add_row(*[f"{v:.3f}" if isinstance(v, float) else str(v) for v in row.values()])
+        table.add_row(
+            *[f"{v:.3f}" if isinstance(v, float) else str(v) for v in row.values()]
+        )
     console.print(table)
     console.log(f"saved {args.out}")
 

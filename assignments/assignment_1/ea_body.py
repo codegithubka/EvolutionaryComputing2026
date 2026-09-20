@@ -336,9 +336,7 @@ def write_config_json(
         "algorithm": algorithm,
         "seed": seed,
         "config": resolved,
-        "targets": [
-            str(p.relative_to(REPO_ROOT)) for p in target_paths()
-        ],
+        "targets": [str(p.relative_to(REPO_ROOT)) for p in target_paths()],
         "fitness": "mean_plus_std_tree_edit_distance (minimised)",
         "git": _git_commit(),
         "versions": _package_versions(),
@@ -445,9 +443,9 @@ def evaluate(population: Population, state: RunState) -> Population:
 @EAOperation
 def survivor_selection(population: Population, config: EAConfig) -> Population:
     """(mu + lambda) truncation. Returns ALL mu + lambda individuals."""
-    assert not any(ind.requires_eval for ind in population), (
-        "survivor_selection called with unevaluated individuals"
-    )
+    assert not any(
+        ind.requires_eval for ind in population
+    ), "survivor_selection called with unevaluated individuals"
     ranked = rank_individuals(list(population))
     for ind in ranked[config.pop_size :]:
         ind.alive = False
@@ -472,8 +470,7 @@ def log_stats(population: Population, config: EAConfig, state: RunState) -> Popu
     n_children = len(state.children)
     row["mut_noop_rate"] = sum(c.tags["noop"] for c in state.children) / n_children
     row["mut_improve_rate"] = (
-        sum(c.fitness < c.tags["parent_fitness"] for c in state.children)
-        / n_children
+        sum(c.fitness < c.tags["parent_fitness"] for c in state.children) / n_children
     )
     row["size_rejections"] = state.size_rejections
     row["size_fallbacks"] = state.size_fallbacks
@@ -541,9 +538,9 @@ def run_ea(config: EAConfig, seed: int, out_dir: Path) -> list[dict[str, Any]]:
     )
     ea.run()
 
-    assert state.evals == config.total_evaluations, (
-        f"evaluation count {state.evals} != {config.total_evaluations}"
-    )
+    assert (
+        state.evals == config.total_evaluations
+    ), f"evaluation count {state.evals} != {config.total_evaluations}"
     write_generations_csv(state.rows, out_dir / "generations.csv")
     write_best_genome(
         state.best_genotype,

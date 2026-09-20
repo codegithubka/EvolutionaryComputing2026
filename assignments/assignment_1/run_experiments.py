@@ -104,7 +104,9 @@ def main() -> None:
     ctx = mp.get_context("spawn")
     with ctx.Pool(processes=args.workers, maxtasksperchild=1) as pool:
         for name, seed, best, secs in pool.imap_unordered(run_one, tasks):
-            console.log(f"{name:8s} seed {seed:2d}  final best {best:.4f}  ({secs:.1f}s)")
+            console.log(
+                f"{name:8s} seed {seed:2d}  final best {best:.4f}  ({secs:.1f}s)"
+            )
     console.log(f"done in {time.perf_counter() - start:.1f}s")
 
 
