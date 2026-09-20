@@ -1,0 +1,228 @@
+\documentclass[sigconf]{acmart}
+
+\usepackage{booktabs}
+
+% --- Strip ACM boilerplate (not part of the assignment) --- %
+\setcopyright{none}
+\settopmatter{printacmref=false, printccs=false, printfolios=true}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+\acmConference[]{}{}{}
+\acmISBN{}
+\acmDOI{}
+\acmPrice{}
+
+% --- Placeholders: fill in before submission --- %
+\newcommand{\groupnumber}{6}
+\newcommand{\todo}[1]{\textcolor{red}{[#1]}}
+
+\begin{document}
+
+% --- Cover page (not counted towards the page limit) --- %
+\onecolumn
+\thispagestyle{empty}
+\begin{center}
+  \vspace*{0.2\textheight}
+  {\LARGE Evolutionary Computing\par}
+  \vspace{1.5em}
+  {\Large Standard Assignment 1: Evolving a Robot Body towards a Target Set\par}
+  \vspace{2.5em}
+  {\large Group \groupnumber\par}
+  \vspace{1.5em}
+  \begin{tabular}{ll}
+    Kimon Anagnostopoulos & 2879433 \\
+    Andreas Adamantos & 16491602 \\
+    \todo{Name 3} & \todo{Student ID} \\
+    \todo{Name 4} & \todo{Student ID} \\
+  \end{tabular}
+  \par\vfill
+  {\large 21 September 2026\par}
+\end{center}
+\clearpage
+\setcounter{page}{1}
+
+% =========================================================================== %
+%  PAPER
+% =========================================================================== %
+\title{Subtree-Replacement versus Point Mutation for Evolving Robot Bodies towards a Target Set}
+\author{Group \groupnumber}
+\affiliation{%
+  \institution{Vrije Universiteit Amsterdam}
+  \city{Amsterdam}
+  \country{The Netherlands}}
+
+\begin{abstract}
+Robot bodies encoded as tree genomes were evolved in ARIEL towards a set of five target bodies, with fitness defined as the mean plus one standard deviation of the weighted tree edit distance to the targets.
+Two $(\mu+\lambda)$ EA variants, identical except for the mutation operator (point versus subtree replacement), were compared with each other and with random search at an equal budget of 10{,}100 evaluations over 20 independent runs each.
+Subtree replacement reached a lower final fitness than point mutation ($12.34 \pm 0.39$ vs.\ $13.53 \pm 0.35$; $\hat{A}_{12} = 0.985$), was already ahead at generation~10, and both EAs outperformed random search ($14.29 \pm 0.20$).
+Decomposing the fitness shows that the advantage lies entirely in the dispersion term: subtree replacement is marginally worse on the mean distance to the targets and far more even across them, a compromise that only an operator able to grow bodies can reach.
+\end{abstract}
+
+\maketitle
+
+% --------------------------------------------------------------------------- %
+\section{Introduction}
+% --------------------------------------------------------------------------- %
+The evolution of robot morphologies~\cite{eiben2015} requires variation operators that can change the composition of a body and its size.
+In ARIEL~\cite{ariel2026}, a body is encoded as a rooted tree of modules, so that the standard tree-based variation operators of genetic programming~\cite{koza1992} apply directly.
+These operators differ in reach; point mutation relabels a single module and can only remove modules, whereas subtree replacement deletes a subtree and grafts a new random one, so that bodies can both grow and shrink.
+When the target bodies are larger than typical initial bodies, this asymmetry is expected to govern the attainable fitness.
+The question addressed here is whether, at an equal evaluation budget, subtree-replacement mutation reaches a different final fitness than point mutation when a robot body is evolved towards a set of target bodies.
+Three hypotheses were formulated before the experiments were run.
+Since point mutation cannot add modules, subtree replacement was expected to reach a better final fitness (H1), although point mutation, whose steps are smaller, was expected to be at least as good in the early generations, operationalised as the best fitness at generation~10 (H2).
+Both variants were expected to outperform random search at the same budget (H3).
+
+% --------------------------------------------------------------------------- %
+\section{Methods}
+% --------------------------------------------------------------------------- %
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=0.92\textwidth]{figures/fig1_dynamics.pdf}
+  \caption{Search dynamics over 100 generations. Left: best fitness of the population
+  (solid; best so far for RS) and mean fitness of the population (dashed; EA variants
+  only). Right: mean body size of the population in nodes, counting the core; the dotted
+  line marks the mean target size of 15.4 nodes. Curves show the mean over the 20
+  independent runs and the shaded bands $\pm 1$ standard deviation over runs. Fitness is
+  minimised, so lower is better.}
+  \label{fig:dynamics}
+\end{figure*}
+
+\subsection{Task and fitness function}
+Five target bodies of 7, 11, 15, 19 and 25 nodes (core included; mean 15.4) were supplied with the assignment.
+The distance $d_i(x)$ between a candidate body $x$ and target $t_i$ is the weighted Zhang--Shasha tree edit distance~\cite{zhang1989}, with unit cost for module insertion and deletion, a relabelling cost of 1 for a type mismatch, 0.5 for a rotation mismatch of the same type, and 0 otherwise; children are ordered canonically by attachment face.
+Fitness is minimised and defined as
+\[
+  f(x) = \bar{d}(x) + \sigma_d(x), \qquad
+  \sigma_d(x) = \Bigl(\tfrac{1}{5}\textstyle\sum_{i=1}^{5}\bigl(d_i(x) - \bar{d}(x)\bigr)^2\Bigr)^{1/2},
+\]
+where $\bar{d}(x)$ is the mean of the five distances, so that bodies are rewarded for being uniformly close to all targets rather than close to one.
+Since all bodies were capped at 21 nodes (Section~\ref{sec:ea}), the largest target cannot be matched, so that $d_5(x) \geq 4$ for every admissible $x$.
+
+\subsection{Representation and variation}
+A tree genome was used, in which the genotype is the body itself.
+The root is the core, which accepts children on four faces; a module is either a brick (five free faces) or a hinge (one free face), with rotation $0^\circ$, $45^\circ$ or $90^\circ$.
+Initial bodies were drawn with $k \sim \mathcal{U}\{1,\dots,20\}$ modules, each module being attached to a uniformly chosen free face with a uniformly chosen type and rotation.
+Two mutation operators of ARIEL were compared, exactly one of which was applied per offspring.
+Point mutation (P) selects a non-core module uniformly, switches its type and resamples its rotation, and removes, together with their subtrees, any children attached to faces that the new type does not permit; the body size can therefore decrease or stay constant, but never increase.
+Subtree replacement (S) removes a uniformly selected non-core module with its subtree and grafts, at the same parent face, one branch of a freshly generated random tree of one to three modules, so that the body size can increase, decrease or stay constant.
+Crossover was not used, so that the two variants differ in the mutation operator only.
+
+\subsection{Evolutionary algorithm}
+\label{sec:ea}
+A $(\mu+\lambda)$ EA with $\mu = \lambda = 100$ was run for 100 generations (Table~\ref{tab:params}).
+Each of the $\lambda$ offspring was produced by selecting a parent in a tournament of size 3 (with replacement), cloning it and applying one mutation.
+Offspring exceeding 21 nodes were rejected and re-mutated from the parent, up to 10 attempts, after which the unmutated clone was retained.
+Survivors were chosen by truncation over parents and offspring, with ties broken by individual age, which makes the EA elitist and each run deterministic given its seed.
+A population of 100 over 100 generations was sufficient for both variants to reach a stable size distribution, as the flat tails of Figure~\ref{fig:dynamics} confirm; a tournament of size 3 keeps selection pressure moderate, so that the comparison is not dominated by premature convergence, and the cap of 21 nodes matches the upper end of the initialiser while bounding the cost of the edit distance.
+
+\begin{table}[t]
+  \caption{Parameter settings shared by both EA variants.}
+  \label{tab:params}
+  \small
+  \centering
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    Parameter & Value \\
+    \midrule
+    Population size $\mu$ / offspring $\lambda$ & 100 / 100 \\
+    Generations & 100 \\
+    Evaluation budget per run & $\mu + 100\lambda = 10{,}100$ \\
+    Parent selection & tournament, $k = 3$, with replacement \\
+    Survivor selection & $(\mu+\lambda)$ truncation \\
+    Mutations per offspring & 1 (P or S) \\
+    Crossover & none \\
+    Body-size cap & 21 nodes (20 modules + core) \\
+    Initial size & $\mathcal{U}\{1,\dots,20\}$ modules \\
+    Independent runs & 20 per configuration (seeds 0--19) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Experimental setup}
+Three configurations were run with 20 seeds each, namely the EA with P, the EA with S, and random search (RS).
+RS drew 10{,}100 bodies independently from the EA initialiser and recorded the best body found so far, which matches the evaluation budget of the EAs.
+Since every configuration was seeded identically, P, S and RS started from the same 100 initial bodies for a given seed.
+To test the step-size premise of H2, each operator was applied once to the same 1{,}000 bodies drawn from the initialiser (seed 12{,}345), and the resulting changes in size and fitness were recorded.
+
+Because all configurations share their initial population for a given seed, the runs are paired, and best fitness values were compared with two-sided Wilcoxon signed-rank tests~\cite{wilcoxon1945}, Holm-corrected~\cite{holm1979} over the four comparisons reported and with $\alpha = 0.05$.
+Effect sizes are reported as the Vargha--Delaney statistic~\cite{vargha2000} $\hat{A}_{12} = P(X < Y) + \tfrac{1}{2}P(X = Y)$, i.e.\ the probability that configuration $X$ attains the lower (better) value.
+Unpaired Mann--Whitney $U$ tests~\cite{mann1947} give the same conclusions and are reported with the code.
+The code, the exact commands and the per-run configuration files (seed, parameters, commit hash and package versions) are included with this report.
+
+% --------------------------------------------------------------------------- %
+\section{Results and discussion}
+% --------------------------------------------------------------------------- %
+Table~\ref{tab:results} summarises the final fitness of all three configurations and Figure~\ref{fig:dynamics} the corresponding search dynamics.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/fig2_final_best.pdf}
+  \caption{Final best fitness of each of the 20 independent runs per configuration (dots),
+  with the mean and $\pm 1$ standard deviation over runs shown to the right of each group.
+  Lower is better.}
+  \label{fig:final}
+\end{figure}
+
+\begin{table}[t]
+  \caption{Final best fitness (lower is better; $n = 20$ per configuration) and pairwise comparisons. $\hat{A}_{12}$ is the probability that the first configuration of a pair attains the lower value.}
+  \label{tab:results}
+  \small
+  \centering
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    Config. & Mean $\pm$ SD & Median [IQR] & Range \\
+    \midrule
+    P  & $13.53 \pm 0.35$ & 13.49 [0.41] & 12.72--14.16 \\
+    S  & $12.34 \pm 0.39$ & 12.30 [0.52] & 11.77--13.30 \\
+    RS & $14.29 \pm 0.20$ & 14.28 [0.16] & 13.64--14.59 \\
+    \midrule
+    Comparison & Wins & $p_\text{Holm}$ & $\hat{A}_{12}$ \\
+    \midrule
+    S vs.\ P  & 20/20 & $7.6\times10^{-6}$ & 0.985 \\
+    P vs.\ RS & 20/20 & $7.6\times10^{-6}$ & 0.978 \\
+    S vs.\ RS & 20/20 & $7.6\times10^{-6}$ & 1.000 \\
+    S vs.\ P, gen.~10 & 15/20 & $0.030$ & 0.690 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Final fitness (H1).}
+Subtree replacement reached a lower final best fitness than point mutation on every seed ($\hat{A}_{12} = 0.985$, $p_\text{Holm} = 7.6\times10^{-6}$; Table~\ref{tab:results}, Figure~\ref{fig:final}); the worst S run ($13.30$) was better than the median P run ($13.49$).
+H1 is supported, but not through a uniform reduction in distance.
+Decomposing $f = \bar{d} + \sigma_d$ over the final populations, S is marginally \emph{worse} than P on the mean distance ($11.72$ vs.\ $11.54$, paired $p = 0.20$) and wins entirely on the dispersion term ($0.63$ vs.\ $1.99$, paired $p < 10^{-5}$), which accounts for the whole gap.
+The per-target profiles make this concrete: against the five targets in increasing order of size, P attains $[9.5, 10.1, 11.1, 12.5, 14.6]$ and S attains $[11.1, 11.4, 11.5, 12.2, 12.5]$.
+P stays close to the small targets and far from the largest, whereas S occupies the middle of the 7--25 node range and flattens its profile, a compromise the fitness rewards because it charges one standard deviation across targets.
+Only an operator that can grow bodies can reach that compromise, which is visible in the right-hand panel of Figure~\ref{fig:dynamics}: the mean body size under P levelled off at approximately 11.5 nodes within the first $\sim$20 generations, whereas under S it grew to 13.6 nodes at generation~100.
+The cap of 21 nodes puts a floor of $d_5 \geq 4$ on the distance to the largest target, and S attains $12.5$ there while holding every other distance within $1.4$ of it, so its remaining error is dominated by targets that are reachable in principle.
+The fitness of P stagnated after generation~20 on the median run (all runs by generation~44), and by generation~100 only $4.2$ of its $100$ genotypes were still distinct, against $62.2$ for S.
+The size cap was effectively inactive, with 3 rejections among 200{,}000 S offspring and no fallbacks; for P the count is 0 by construction, since it cannot grow a body.
+
+\paragraph{Early search (H2).}
+The premise of H2 held on initialiser bodies, where P changed fitness less per application than S (mean $|\Delta f| = 0.44$ vs.\ $0.52$; median $0.28$ vs.\ $0.34$), and P never produced a neutral mutation whereas $6.0\%$ of S applications left the body unchanged.
+The difference is modest, however, and it widens on bodies at the size cap ($0.71$ vs.\ $1.02$), so P is not uniformly the smaller-stepped operator.
+S was nevertheless already ahead at generation~10, on 15 of 20 seeds ($\hat{A}_{12} = 0.69$, $p_\text{Holm} = 0.030$), and H2 is therefore rejected.
+The same decomposition applies this early: at generation~10 S is already lower on the dispersion term ($1.88$ vs.\ $2.23$, paired $p = 0.024$) while remaining marginally worse on the mean distance ($11.78$ vs.\ $11.66$), so the early lead arises through the same channel as the final one.
+The initial drop in body size between generations 0 and 1 in both variants reflects selection among the 200 individuals of the first generation, which favoured smaller random bodies, plausibly because these accumulate fewer mismatched modules.
+
+\paragraph{Comparison with random search (H3).}
+Both EAs outperformed random search on every seed (P: $\hat{A}_{12} = 0.978$; S: $\hat{A}_{12} = 1.000$; both $p_\text{Holm} < 10^{-5}$), and H3 is supported.
+Random search improved only slowly after the first generation, which indicates that bodies close to all targets form a small region of the search space that is reached by cumulative selection rather than by sampling.
+The lower spread of RS (SD $0.20$) reflects the concentration of its best-so-far values near the tail of the initialiser distribution rather than a more reliable search.
+
+\paragraph{Limitations.}
+S differs from P in its ability to grow bodies, in its step size and in admitting neutral moves, and these factors are not separated here; a size-neutral subtree operator, or P combined with an insertion operator, would isolate the effect of growth.
+The step-size premise was measured on initialiser bodies rather than on selected parents, on which the gap is larger.
+Results were obtained for a single target set, a single fitness aggregation and a fixed parameter setting without crossover, and may not transfer to target sets that are smaller than the initial bodies, where the dispersion term would reward shrinking instead.
+
+% --------------------------------------------------------------------------- %
+\section{Conclusions}
+% --------------------------------------------------------------------------- %
+At an equal budget of 10{,}100 evaluations, subtree-replacement mutation reached a substantially better final fitness than point mutation when robot bodies were evolved towards a set of target bodies (H1 supported), and both EA variants outperformed random search (H3 supported).
+Contrary to H2, the smaller steps of point mutation conferred no early advantage.
+The decomposition of the fitness locates the difference in the dispersion term rather than in the mean distance: the winning operator is the one that can grow bodies into the middle of the target size range and so be evenly close to all targets, at a slight cost in average closeness.
+Since the two operators differ in more than one respect, future work should separate them by combining point mutation with an explicit insertion operator, and should establish whether the ranking persists for target sets smaller than the initial bodies and under crossover.
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}
