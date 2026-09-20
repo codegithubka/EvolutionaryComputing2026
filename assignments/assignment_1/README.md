@@ -11,7 +11,7 @@ From the repository root:
 ```bash
 uv run assignments/assignment_1/step_size.py
 uv run assignments/assignment_1/run_experiments.py --configs point subtree random --seeds 0-19
-uv run assignments/assignment_1/analyze.py --data __data__/A1 --out assignments/assignment_1/results
+uv run jupyter nbconvert --to notebook --execute --inplace assignments/assignment_1/analysis.ipynb
 ```
 
 Runs are deterministic: the same seed and configuration give an identical `generations.csv`.
