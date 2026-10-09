@@ -87,7 +87,9 @@ class EAConfig:
     variation: Variation = "mut"
     pop_size: int = 30
     offspring_size: int = 30
-    generations: int = 150  # 4530 evaluations; pilot runs still improved at 1530
+    # 9030 evaluations. At 150 generations no arm met the plateau criterion
+    # (mean best-so-far still improved 10-12% over the last 20% of evaluations).
+    generations: int = 300
     tournament_size: int = 3
     init_std: float = 0.5
     # Pilot (1530 evals, 3 seeds, mut + xmut): best worst-arm mean; the

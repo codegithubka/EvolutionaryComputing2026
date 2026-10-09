@@ -21,7 +21,7 @@
 | Body / world | `spider_8` (John Set) on `SimpleFlatWorld` |
 | Task | spawn at (0, 0), target at (3, 2), 15 s simulated, planar distance to target minimised |
 | Controller | inputs (hinge angles, target direction in heading frame, distance, sin/cos 1 Hz clock, bias) → 6 tanh → 8 tanh, direct control every physics step (2 ms) |
-| EA | (μ+λ), μ = λ = 30, tournament k = 3, 150 generations (4,530 evaluations) |
+| EA | (μ+λ), μ = λ = 30, tournament k = 3, 300 generations (9,030 evaluations) |
 | Variation | uniform crossover (p = 0.5), Gaussian mutation σ = 0.2, per-gene p = 0.1, every child differs from its parent |
 | Seeds | 0–14 for `mut` and `xmut`, 0–9 for `xrand` and `random`; pilot seeds 100–102 |
 
