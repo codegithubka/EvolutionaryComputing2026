@@ -500,6 +500,10 @@ def run_ea(config: EAConfig, seed: int, out_dir: Path) -> list[dict[str, Any]]:
     """Run one (mu + lambda) EA and write all its output files."""
     seed_everything(seed)
     out_dir.mkdir(parents=True, exist_ok=True)
+    # ariel's EA draws from the stdlib `random` stream when it finds an
+    # existing database, which would shift our tournament draws. Remove a
+    # leftover database (e.g. from a killed run) so reruns stay reproducible.
+    (out_dir / "database.db").unlink(missing_ok=True)
     write_config_json(config, seed, "ea", out_dir)
 
     state = RunState()

@@ -51,3 +51,5 @@ uv run assignments/assignment_2/replay_best.py __data__/A2/mut/seed_00 --video
 ```
 
 Runs are deterministic: the same seed and configuration give an identical `generations.csv`. For a given seed, every configuration starts from the same initial population.
+
+`run_ea` deletes any `database.db` already in a run's folder before starting. When ariel's `EA` finds an existing database it consumes a value from Python's `random` stream, which our tournament selection also uses, so without this a rerun into a folder left by a killed run would follow a different trajectory from generation 1 onwards.
