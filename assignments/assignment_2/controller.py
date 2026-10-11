@@ -226,10 +226,20 @@ class SimResult:
     final_y: float
     min_z: float  # lowest core height reached (flip / collapse indicator)
     path_length: float  # planar distance travelled by the core
+    path: FloatArray | None = None  # (n, 2) core x-y trace, only if requested
 
 
-def simulate(genotype: Sequence[float], setup: Setup) -> SimResult:
-    """Run one headless episode with DIRECT control and score it."""
+def simulate(
+    genotype: Sequence[float],
+    setup: Setup,
+    *,
+    record_path: bool = False,
+) -> SimResult:
+    """Run one headless episode with DIRECT control and score it.
+
+    ``record_path`` additionally returns the core's x-y trace (for figures);
+    it does not change the simulation.
+    """
     c = compiled(setup)
     model = c.model
     data = mj.MjData(model)
@@ -242,6 +252,7 @@ def simulate(genotype: Sequence[float], setup: Setup) -> SimResult:
     prev_xy = start[:2].copy()
     min_z = float(start[2])
     path_length = 0.0
+    trace = [prev_xy.copy()] if record_path else None
 
     n_updates = round(setup.sim_duration / (model.opt.timestep * setup.control_every))
     for _ in range(n_updates):
@@ -252,6 +263,8 @@ def simulate(genotype: Sequence[float], setup: Setup) -> SimResult:
         xy = data.qpos[root : root + 2]
         path_length += float(np.hypot(*(xy - prev_xy)))
         prev_xy = xy.copy()
+        if trace is not None:
+            trace.append(prev_xy)
         min_z = min(min_z, float(data.qpos[root + 2]))
 
     final = data.qpos[root : root + 3].copy()
@@ -263,6 +276,7 @@ def simulate(genotype: Sequence[float], setup: Setup) -> SimResult:
         final_y=float(final[1]),
         min_z=min_z,
         path_length=path_length,
+        path=np.asarray(trace) if trace is not None else None,
     )
 
 
